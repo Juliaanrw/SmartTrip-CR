@@ -2,12 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const lugarRoutes = require("./routes/lugarRoutes");
 
 const app = express();
 
 //Middlewares Básicos
 app.use(cors());
 app.use(express.json());
+app.use("/api/lugares", lugarRoutes);
 
 //Conexión a MongoDB usando Variables de Entorno
 const MONGO_URI = process.env.MONGO_URI;
