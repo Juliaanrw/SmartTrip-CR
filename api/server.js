@@ -11,7 +11,7 @@ const presupuestoRoutes = require("./routes/presupuestoRoutes");
 const resenaLugarRoutes = require("./routes/resenaLugarRoutes");
 const servicioLocalRoutes = require("./routes/servicioLocalRoutes");
 const categoriaTagRoutes = require("./routes/categoriaTagRoutes");
-
+const promocionOfertaRoutes = require("./routes/promocionOfertaRoutes");
 
 
 const app = express();
@@ -27,7 +27,7 @@ app.use("/api/presupuestos", presupuestoRoutes);
 app.use("/api/resenas-lugares", resenaLugarRoutes);
 app.use("/api/servicios-locales", servicioLocalRoutes);
 app.use("/api/categorias-tags", categoriaTagRoutes);
-
+app.use("/api/promociones-ofertas", promocionOfertaRoutes);
 
 
 //Conexión a MongoDB usando Variables de Entorno
