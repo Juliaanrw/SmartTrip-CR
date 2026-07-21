@@ -9,7 +9,7 @@ const itinerarioRoutes = require("./routes/itinerarioRoutes");
 const grupoViajeRoutes = require("./routes/grupoViajeRoutes");
 const presupuestoRoutes = require("./routes/presupuestoRoutes");
 const resenaLugarRoutes = require("./routes/resenaLugarRoutes");
-
+const servicioLocalRoutes = require("./routes/servicioLocalRoutes");
 
 
 
@@ -25,7 +25,7 @@ app.use("/api/itinerarios", itinerarioRoutes);
 app.use("/api/grupos-viajes", grupoViajeRoutes);
 app.use("/api/presupuestos", presupuestoRoutes);
 app.use("/api/resenas-lugares", resenaLugarRoutes);
-
+app.use("/api/servicios-locales", servicioLocalRoutes);
 
 
 
