@@ -6,7 +6,7 @@ const lugarRoutes = require("./routes/lugarRoutes");
 const usuarioRoutes = require("./routes/usuarioRoutes");
 const perfilRoutes = require("./routes/perfilRoutes");
 const itinerarioRoutes = require("./routes/itinerarioRoutes");
-
+const grupoViajeRoutes = require("./routes/grupoViajeRoutes");
 
 
 
@@ -18,7 +18,7 @@ app.use("/api/lugares", lugarRoutes);
 app.use("/api/usuarios", usuarioRoutes);
 app.use("/api/perfiles", perfilRoutes);
 app.use("/api/itinerarios", itinerarioRoutes);
-
+app.use("/api/grupos-viajes", grupoViajeRoutes);
 
 
 //Conexión a MongoDB usando Variables de Entorno
