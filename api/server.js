@@ -13,7 +13,7 @@ const servicioLocalRoutes = require("./routes/servicioLocalRoutes");
 const categoriaTagRoutes = require("./routes/categoriaTagRoutes");
 const promocionOfertaRoutes = require("./routes/promocionOfertaRoutes");
 const bitacoraAuditoriaRoutes = require("./routes/bitacoraAuditoriaRoutes");
-
+const ticketSoporteRoutes = require("./routes/ticketSoporteRoutes");
 
 
 const app = express();
@@ -31,7 +31,7 @@ app.use("/api/servicios-locales", servicioLocalRoutes);
 app.use("/api/categorias-tags", categoriaTagRoutes);
 app.use("/api/promociones-ofertas", promocionOfertaRoutes);
 app.use("/api/bitacora-auditoria", bitacoraAuditoriaRoutes);
-
+app.use("/api/tickets-soporte", ticketSoporteRoutes);
 
 
 //Conexión a MongoDB usando Variables de Entorno
