@@ -8,6 +8,10 @@ const perfilRoutes = require("./routes/perfilRoutes");
 const itinerarioRoutes = require("./routes/itinerarioRoutes");
 const grupoViajeRoutes = require("./routes/grupoViajeRoutes");
 const presupuestoRoutes = require("./routes/presupuestoRoutes");
+const resenaLugarRoutes = require("./routes/resenaLugarRoutes");
+
+
+
 
 
 const app = express();
@@ -20,6 +24,11 @@ app.use("/api/perfiles", perfilRoutes);
 app.use("/api/itinerarios", itinerarioRoutes);
 app.use("/api/grupos-viajes", grupoViajeRoutes);
 app.use("/api/presupuestos", presupuestoRoutes);
+app.use("/api/resenas-lugares", resenaLugarRoutes);
+
+
+
+
 
 //Conexión a MongoDB usando Variables de Entorno
 const MONGO_URI = process.env.MONGO_URI;
