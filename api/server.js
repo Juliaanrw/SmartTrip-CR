@@ -4,6 +4,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const lugarRoutes = require("./routes/lugarRoutes");
 const usuarioRoutes = require("./routes/usuarioRoutes");
+const perfilRoutes = require("./routes/perfilRoutes");
 
 const app = express();
 
@@ -12,6 +13,7 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/lugares", lugarRoutes);
 app.use("/api/usuarios", usuarioRoutes);
+app.use("/api/perfiles", perfilRoutes);
 
 //Conexión a MongoDB usando Variables de Entorno
 const MONGO_URI = process.env.MONGO_URI;
