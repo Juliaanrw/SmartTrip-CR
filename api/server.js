@@ -37,17 +37,36 @@ app.use("/api/tickets-soporte", ticketSoporteRoutes);
 //Conexión a MongoDB usando Variables de Entorno
 const MONGO_URI = process.env.MONGO_URI;
 
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('Conexión exitosa a MongoDB desde variables de entorno'))
-  .catch((error) => console.error('Error al conectar a MongoDB:', error));
-
-//Ruta de prueba inicial
-app.get('/', (req, res) => {
-  res.send('Servidor Base de SmartTrip CR Operando Correctamente');
+// Ruta de prueba inicial
+app.get("/", (req, res) => {
+  res.send("Servidor Base de SmartTrip CR Operando Correctamente");
 });
 
-//Puerto de escucha
+// Puerto de escucha
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor de SmartTrip corriendo en: http://localhost:${PORT}`);
-});
+
+const iniciarServidor = async () => {
+  try {
+    if (!MONGO_URI) {
+      throw new Error("La variable MONGO_URI no está definida en el archivo .env");
+    }
+
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 10000
+    });
+
+    console.log("Conexión exitosa a MongoDB");
+
+    app.listen(PORT, () => {
+      console.log(
+        `Servidor de SmartTrip corriendo en: http://localhost:${PORT}`
+      );
+    });
+  } catch (error) {
+    console.error("No se pudo conectar a MongoDB:");
+    console.error(error.message);
+    process.exit(1);
+  }
+};
+
+iniciarServidor();
