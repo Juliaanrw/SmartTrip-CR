@@ -10,7 +10,7 @@ const grupoViajeRoutes = require("./routes/grupoViajeRoutes");
 const presupuestoRoutes = require("./routes/presupuestoRoutes");
 const resenaLugarRoutes = require("./routes/resenaLugarRoutes");
 const servicioLocalRoutes = require("./routes/servicioLocalRoutes");
-
+const categoriaTagRoutes = require("./routes/categoriaTagRoutes");
 
 
 
@@ -26,7 +26,7 @@ app.use("/api/grupos-viajes", grupoViajeRoutes);
 app.use("/api/presupuestos", presupuestoRoutes);
 app.use("/api/resenas-lugares", resenaLugarRoutes);
 app.use("/api/servicios-locales", servicioLocalRoutes);
-
+app.use("/api/categorias-tags", categoriaTagRoutes);
 
 
 
