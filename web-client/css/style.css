@@ -1,0 +1,141 @@
+:root {
+  --st-green: #0b6e4f;
+  --st-green-dark: #084c37;
+  --st-sand: #f7f3e9;
+  --st-sky: #2596be;
+  --st-warn: #e0a72b;
+}
+
+body {
+  background-color: var(--st-sand);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.st-navbar {
+  background: linear-gradient(135deg, var(--st-green-dark), var(--st-green));
+}
+
+.st-card {
+  border: none;
+  border-radius: 0.75rem;
+}
+
+.st-btn-primary {
+  background-color: var(--st-green);
+  border-color: var(--st-green);
+  color: #fff;
+}
+
+.st-btn-primary:hover {
+  background-color: var(--st-green-dark);
+  border-color: var(--st-green-dark);
+  color: #fff;
+}
+
+.table thead {
+  background-color: var(--st-green);
+}
+
+.table thead th {
+  color: #fff;
+  font-weight: 600;
+  border-bottom: none;
+  white-space: nowrap;
+}
+
+.badge-categoria {
+  font-weight: 500;
+}
+
+/* Colores por categoría de lugar */
+.badge-cat-playa      { background-color: #2596be; }
+.badge-cat-montana    { background-color: #2e7d4f; }
+.badge-cat-volcan     { background-color: #c1502e; }
+.badge-cat-parque     { background-color: #4a7c3f; }
+.badge-cat-catarata   { background-color: #1f6f8b; }
+.badge-cat-cultural   { background-color: #7b4fa3; }
+.badge-cat-aventura   { background-color: #e0a72b; color: #3a2c00; }
+.badge-cat-otro       { background-color: #6c757d; }
+
+/* Badges de rol / estado (usuarios) */
+.badge-rol-turista        { background-color: var(--st-sky); }
+.badge-rol-administrador  { background-color: #7b4fa3; }
+.badge-rol-proveedor      { background-color: #c1502e; }
+.badge-estado-activo      { background-color: var(--st-green); }
+.badge-estado-inactivo    { background-color: #6c757d; }
+
+.st-badge-count {
+  background-color: var(--st-green);
+  color: #fff;
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+.st-estrellas {
+  color: var(--st-warn);
+  letter-spacing: 1px;
+}
+
+/* Pestañas de navegación entre colecciones */
+.st-nav-pills .nav-link {
+  color: var(--st-green-dark);
+  font-weight: 500;
+  border-radius: 2rem;
+  padding: 0.5rem 1.1rem;
+}
+
+.st-nav-pills .nav-link.active {
+  background-color: var(--st-green);
+  color: #fff;
+}
+
+.st-form.editing {
+  outline: 2px dashed var(--st-warn);
+  outline-offset: 8px;
+  border-radius: 0.5rem;
+}
+
+/* Animación de entrada para filas nuevas/actualizadas */
+@keyframes filaAparece {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+    background-color: rgba(11, 110, 79, 0.12);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    background-color: transparent;
+  }
+}
+
+.fila-nueva {
+  animation: filaAparece 0.6s ease-out;
+}
+
+/* Estado vacío */
+.st-empty-state {
+  padding: 2.5rem 1rem;
+}
+
+.st-empty-state i {
+  font-size: 2.5rem;
+  color: var(--st-sky);
+  opacity: 0.6;
+}
+
+.st-empty-state .btn-link {
+  color: var(--st-green);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.st-empty-state .btn-link:hover {
+  text-decoration: underline;
+}
+
+.text-truncate-cell {
+  max-width: 220px;
+  display: inline-block;
+  vertical-align: middle;
+}
