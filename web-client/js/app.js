@@ -1,668 +1,460 @@
 
 
-const API_ROOT = 'http://localhost:3000/api';
+const API_BASE_URL = "http://localhost:3000";
 
+// ---------- Estado global ----------
+let moduloActivo = null;
+let registrosActuales = []; 
+let cacheReferencias = {}; 
+let idPendienteEliminar = null;
+let deleteModal;
 
+// ---------- Referencias al DOM ----------
+const navModulos = document.getElementById("nav-modulos");
+const moduloTitulo = document.getElementById("modulo-titulo");
+const moduloIcono = document.getElementById("modulo-icono");
+const formTitle = document.getElementById("form-title");
+const dynamicForm = document.getElementById("dynamic-form");
+const formFields = document.getElementById("form-fields");
+const idInput = document.getElementById("registro-id");
+const submitBtn = document.getElementById("submit-btn");
+const cancelBtn = document.getElementById("cancel-btn");
+const refreshBtn = document.getElementById("refresh-btn");
+const tableHead = document.getElementById("table-head");
+const tableBody = document.getElementById("table-body");
+const alertBox = document.getElementById("alert-box");
+const deleteTargetLabel = document.getElementById("delete-target-label");
 
-function esc(texto) {
-  const div = document.createElement('div');
-  div.textContent = texto ?? '';
-  return div.innerHTML;
-}
-
-function formatearColones(valor) {
-  const numero = Number(valor) || 0;
-  return numero.toLocaleString('es-CR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function obtenerCosto(lugar) {
-  const valor = lugar.costo_ingreso;
-  if (valor && typeof valor === 'object' && '$numberDecimal' in valor) {
-    return valor.$numberDecimal;
-  }
-  return valor;
-}
-
-function formatFecha(valor) {
-  if (!valor) return '—';
-  const fecha = new Date(valor);
-  if (Number.isNaN(fecha.getTime())) return '—';
-  return fecha.toLocaleDateString('es-CR', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-function estrellas(calificacion) {
-  const n = Number(calificacion) || 0;
-  const llenas = '★'.repeat(n);
-  const vacias = '☆'.repeat(Math.max(0, 5 - n));
-  return `<span class="st-estrellas" title="${n} de 5">${llenas}${vacias}</span>`;
-}
-
-const CATEGORIA_CONFIG = {
-  'Playa': { clase: 'badge-cat-playa', icono: 'bi-water' },
-  'Montaña': { clase: 'badge-cat-montana', icono: 'bi-triangle-fill' },
-  'Volcán': { clase: 'badge-cat-volcan', icono: 'bi-fire' },
-  'Parque Nacional': { clase: 'badge-cat-parque', icono: 'bi-tree-fill' },
-  'Catarata': { clase: 'badge-cat-catarata', icono: 'bi-droplet-fill' },
-  'Cultural': { clase: 'badge-cat-cultural', icono: 'bi-bank2' },
-  'Aventura': { clase: 'badge-cat-aventura', icono: 'bi-compass-fill' },
-};
-
-function badgeCategoria(categoria) {
-  const config = CATEGORIA_CONFIG[categoria] || { clase: 'badge-cat-otro', icono: 'bi-geo-alt-fill' };
-  return `<span class="badge badge-categoria ${config.clase}"><i class="bi ${config.icono} me-1"></i>${esc(categoria)}</span>`;
-}
-
-function badgeRol(rol) {
-  const clase = { turista: 'badge-rol-turista', administrador: 'badge-rol-administrador', proveedor: 'badge-rol-proveedor' }[rol] || 'badge-cat-otro';
-  return `<span class="badge ${clase}">${esc(rol)}</span>`;
-}
-
-function badgeEstado(estado) {
-  const clase = estado === 'activo' ? 'badge-estado-activo' : 'badge-estado-inactivo';
-  return `<span class="badge ${clase}">${esc(estado)}</span>`;
-}
-
-
-
-const ENTIDADES = [
-  {
-    key: 'lugares',
-    label: 'Lugares Turísticos',
-    icon: 'bi-geo-alt-fill',
-    endpoint: `${API_ROOT}/lugares`,
-    listKey: 'lugares',
-    singularKey: 'lugar',
-    nombreSingular: 'lugar turístico',
-    idField: '_id',
-    campos: [
-      { id: 'nombre', label: 'Nombre', type: 'text', required: true, placeholder: 'Ej. Playa Conchal' },
-      { id: 'provincia', label: 'Provincia', type: 'select', required: true, options: ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Guanacaste', 'Puntarenas', 'Limón'] },
-      { id: 'canton', label: 'Cantón', type: 'text', required: true, placeholder: 'Ej. Santa Cruz' },
-      { id: 'categoria', label: 'Categoría', type: 'select', required: true, options: ['Playa', 'Montaña', 'Volcán', 'Parque Nacional', 'Catarata', 'Cultural', 'Aventura'] },
-      { id: 'costo_ingreso', label: 'Costo de ingreso (₡)', type: 'number', required: true, min: 0, step: 0.01, placeholder: '0.00' },
-    ],
-    columnas: [
-      { header: 'Nombre', render: (r) => `<span class="fw-semibold">${esc(r.nombre)}</span>` },
-      { header: 'Provincia', render: (r) => esc(r.provincia) },
-      { header: 'Cantón', render: (r) => esc(r.canton) },
-      { header: 'Categoría', render: (r) => badgeCategoria(r.categoria) },
-      { header: 'Costo (₡)', align: 'end', render: (r) => `₡${formatearColones(obtenerCosto(r))}` },
-    ],
-    filtro: (r, termino) => [r.nombre, r.provincia, r.canton, r.categoria].filter(Boolean).some((c) => c.toLowerCase().includes(termino)),
-  },
-  {
-    key: 'usuarios',
-    label: 'Usuarios',
-    icon: 'bi-people-fill',
-    endpoint: `${API_ROOT}/usuarios`,
-    listKey: 'usuarios',
-    singularKey: 'usuario',
-    nombreSingular: 'usuario',
-    idField: '_id',
-    campos: [
-      { id: 'correo', label: 'Correo', type: 'email', required: true, placeholder: 'nombre@correo.com' },
-      {
-        id: 'contrasena_hash',
-        label: 'Contraseña',
-        type: 'password',
-        required: (esEdicion) => !esEdicion,
-        placeholder: 'Mínimo 6 caracteres',
-        ayudaEdicion: 'Dejar en blanco para mantener la actual.',
-      },
-      { id: 'rol', label: 'Rol', type: 'select', required: true, options: ['turista', 'administrador', 'proveedor'] },
-      { id: 'estado', label: 'Estado', type: 'select', required: true, options: ['activo', 'inactivo'] },
-    ],
-    columnas: [
-      { header: 'Correo', render: (r) => `<span class="fw-semibold">${esc(r.correo)}</span>` },
-      { header: 'Rol', render: (r) => badgeRol(r.rol) },
-      { header: 'Estado', render: (r) => badgeEstado(r.estado) },
-      { header: 'Creado', render: (r) => formatFecha(r.fecha_creacion) },
-    ],
-    filtro: (r, termino) => [r.correo, r.rol, r.estado].filter(Boolean).some((c) => c.toLowerCase().includes(termino)),
-  },
-  {
-    key: 'itinerarios',
-    label: 'Itinerarios',
-    icon: 'bi-map-fill',
-    endpoint: `${API_ROOT}/itinerarios`,
-    listKey: 'itinerarios',
-    singularKey: 'itinerario',
-    nombreSingular: 'itinerario',
-    idField: '_id',
-    campos: [
-      { id: 'nombre_viaje', label: 'Nombre del viaje', type: 'text', required: true, placeholder: 'Ej. Aventura en Guanacaste' },
-      { id: 'creador_id', label: 'Creador', type: 'reference', required: true, refEntidad: 'usuarios', refLabel: (u) => u.correo },
-      { id: 'dias_duracion', label: 'Duración (días)', type: 'number', required: true, min: 1, step: 1, placeholder: 'Ej. 5' },
-      { id: 'fecha_inicio', label: 'Fecha de inicio', type: 'date', required: true },
-      { id: 'detalles_itinerario', label: 'Detalles', type: 'textarea', required: true, placeholder: 'Describe las actividades planificadas...' },
-    ],
-    columnas: [
-      { header: 'Viaje', render: (r) => `<span class="fw-semibold">${esc(r.nombre_viaje)}</span>` },
-      { header: 'Creador', render: (r) => esc(r.creador_id?.correo ?? '—') },
-      { header: 'Duración', align: 'center', render: (r) => `${r.dias_duracion} día(s)` },
-      { header: 'Inicio', render: (r) => formatFecha(r.fecha_inicio) },
-    ],
-    filtro: (r, termino) => [r.nombre_viaje, r.creador_id?.correo, r.detalles_itinerario].filter(Boolean).some((c) => c.toLowerCase().includes(termino)),
-  },
-  {
-    key: 'resenas',
-    label: 'Reseñas',
-    icon: 'bi-star-fill',
-    endpoint: `${API_ROOT}/resenas-lugares`,
-    listKey: 'resenas',
-    singularKey: 'resena',
-    nombreSingular: 'reseña',
-    idField: '_id',
-    campos: [
-      { id: 'lugar_id', label: 'Lugar turístico', type: 'reference', required: true, refEntidad: 'lugares', refLabel: (l) => l.nombre },
-      { id: 'usuario_id', label: 'Usuario', type: 'reference', required: true, refEntidad: 'usuarios', refLabel: (u) => u.correo },
-      { id: 'calificacion', label: 'Calificación (1 a 5)', type: 'number', required: true, min: 1, max: 5, step: 1, placeholder: '1-5' },
-      { id: 'comentario', label: 'Comentario', type: 'textarea', required: true, placeholder: 'Escribe tu experiencia...' },
-    ],
-    columnas: [
-      { header: 'Lugar', render: (r) => esc(r.lugar_id?.nombre ?? '—') },
-      { header: 'Usuario', render: (r) => esc(r.usuario_id?.correo ?? '—') },
-      { header: 'Calificación', align: 'center', render: (r) => estrellas(r.calificacion) },
-      { header: 'Comentario', render: (r) => `<span class="text-truncate-cell" title="${esc(r.comentario)}">${esc(r.comentario)}</span>` },
-    ],
-    filtro: (r, termino) => [r.lugar_id?.nombre, r.usuario_id?.correo, r.comentario].filter(Boolean).some((c) => c.toLowerCase().includes(termino)),
-  },
-];
-
-const estado = {};
-ENTIDADES.forEach((entidad) => {
-  estado[entidad.key] = { cache: [], idEnEdicion: null, ultimoIdGuardado: null, idPendienteEliminar: null, nombrePendienteEliminar: null };
+document.addEventListener("DOMContentLoaded", () => {
+  deleteModal = new bootstrap.Modal(document.getElementById("deleteModal"));
+  construirNav();
+  seleccionarModulo(MODULES[0].key);
 });
 
-let deleteModal;
-let entidadActiva = ENTIDADES[0].key;
+// Navegación entre módulos
 
-
-
-function construirInterfaz() {
-  const tabsEl = document.getElementById('entity-tabs');
-  const contentEl = document.getElementById('tab-content');
-
-  tabsEl.innerHTML = ENTIDADES.map(
-    (entidad, i) => `
-    <li class="nav-item">
-      <button class="nav-link ${i === 0 ? 'active' : ''}" data-tab="${entidad.key}" type="button">
-        <i class="bi ${entidad.icon} me-1"></i>${entidad.label}
+function construirNav() {
+  navModulos.innerHTML = MODULES.map(
+    (m) => `
+      <button type="button" class="list-group-item list-group-item-action st-nav-item" data-key="${m.key}">
+        <i class="bi ${m.icon} me-2"></i>${m.label}
       </button>
-    </li>
-  `
-  ).join('');
+    `
+  ).join("");
 
-  contentEl.innerHTML = ENTIDADES.map((entidad, i) => construirPanel(entidad, i === 0)).join('');
-
-  tabsEl.querySelectorAll('button[data-tab]').forEach((btn) => {
-    btn.addEventListener('click', () => cambiarTab(btn.dataset.tab));
+  navModulos.querySelectorAll(".st-nav-item").forEach((btn) => {
+    btn.addEventListener("click", () => seleccionarModulo(btn.dataset.key));
   });
 }
 
-function construirPanel(entidad, visible) {
+async function seleccionarModulo(key) {
+  moduloActivo = MODULES_BY_KEY[key];
+  if (!moduloActivo) return;
+
+  navModulos.querySelectorAll(".st-nav-item").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.key === key);
+  });
+
+  moduloTitulo.textContent = moduloActivo.label;
+  moduloIcono.className = `bi ${moduloActivo.icon} me-2`;
+
+  await precargarReferencias();
+  construirFormulario();
+  resetearFormulario();
+  await cargarRegistros();
+}
+
+// Precarga de listas para los selects tipo "ref"
+
+async function precargarReferencias() {
+  const refModules = [...new Set(moduloActivo.fields.filter((f) => f.type === "ref").map((f) => f.refModule))];
+
+  await Promise.all(
+    refModules.map(async (key) => {
+      if (cacheReferencias[key]) return; // ya está en caché
+      const mod = MODULES_BY_KEY[key];
+      try {
+        const resp = await fetch(`${API_BASE_URL}${mod.endpoint}`);
+        const data = await resp.json();
+        cacheReferencias[key] = data[mod.listKey] || [];
+      } catch (error) {
+        cacheReferencias[key] = [];
+        console.error(`No se pudo precargar ${key} para los selects de referencia`, error);
+      }
+    })
+  );
+}
+
+// Construcción dinámica del formulario
+
+function construirFormulario() {
+  formFields.innerHTML = moduloActivo.fields
+    .map((f) => {
+      const reqAttr = f.required ? "required" : "";
+      const idAttr = `campo-${f.name}`;
+
+      if (f.type === "select") {
+        const opts = f.options.map((o) => `<option value="${o}">${o}</option>`).join("");
+        return campoWrapper(
+          f,
+          `<select class="form-select" id="${idAttr}" ${reqAttr}>
+             <option value="" selected disabled>Seleccione...</option>
+             ${opts}
+           </select>`
+        );
+      }
+
+      if (f.type === "ref") {
+        const lista = cacheReferencias[f.refModule] || [];
+        const opts = lista
+          .map((item) => `<option value="${item._id}">${escaparHtml(item[f.refDisplay])}</option>`)
+          .join("");
+        return campoWrapper(
+          f,
+          `<select class="form-select" id="${idAttr}" ${reqAttr}>
+             <option value="" selected disabled>Seleccione...</option>
+             ${opts}
+           </select>`
+        );
+      }
+
+      if (f.type === "textarea") {
+        return campoWrapper(
+          f,
+          `<textarea class="form-control" id="${idAttr}" rows="3" ${reqAttr} placeholder="${f.placeholder || ""}"></textarea>`
+        );
+      }
+
+      // text, email, password, number, date
+      const extra = [
+        f.min !== undefined ? `min="${f.min}"` : "",
+        f.max !== undefined ? `max="${f.max}"` : "",
+        f.step !== undefined ? `step="${f.step}"` : "",
+      ].join(" ");
+
+      return campoWrapper(
+        f,
+        `<input type="${f.type}" class="form-control" id="${idAttr}" ${reqAttr} ${extra} placeholder="${f.placeholder || ""}" />`
+      );
+    })
+    .join("");
+}
+
+function campoWrapper(field, inputHtml) {
   return `
-    <div class="entity-panel ${visible ? '' : 'd-none'}" id="panel-${entidad.key}">
-      <div class="row g-4">
-        <!-- Formulario -->
-        <div class="col-lg-4">
-          <div class="card shadow-sm st-card">
-            <div class="card-body">
-              <h2 class="h5 card-title mb-3" id="form-title-${entidad.key}">
-                <i class="bi bi-plus-circle me-1"></i> Agregar ${entidad.nombreSingular}
-              </h2>
-
-              <form id="form-${entidad.key}" class="st-form" novalidate>
-                <input type="hidden" id="id-${entidad.key}" />
-                ${entidad.campos.map((campo) => construirCampo(entidad, campo)).join('')}
-
-                <div class="d-flex gap-2 mt-1">
-                  <button type="submit" class="btn st-btn-primary flex-fill" id="submit-btn-${entidad.key}">
-                    <i class="bi bi-save2 me-1"></i> Guardar
-                  </button>
-                  <button type="button" class="btn btn-outline-secondary d-none" id="cancel-btn-${entidad.key}">
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tabla -->
-        <div class="col-lg-8">
-          <div class="card shadow-sm st-card">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center mb-3">
-                <h2 class="h5 card-title mb-0 d-flex align-items-center gap-2">
-                  <i class="bi ${entidad.icon}"></i> ${entidad.label}
-                  <span class="badge rounded-pill st-badge-count" id="contador-${entidad.key}">0</span>
-                </h2>
-                <button class="btn btn-sm btn-outline-secondary" id="refresh-btn-${entidad.key}">
-                  <i class="bi bi-arrow-clockwise"></i> Actualizar
-                </button>
-              </div>
-
-              <div class="mb-3">
-                <div class="input-group">
-                  <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-                  <input type="text" class="form-control" id="buscador-${entidad.key}" placeholder="Buscar en ${entidad.label.toLowerCase()}..." />
-                </div>
-              </div>
-
-              <div id="alert-box-${entidad.key}"></div>
-
-              <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                  <thead>
-                    <tr>
-                      ${entidad.columnas.map((c) => `<th class="${c.align === 'end' ? 'text-end' : c.align === 'center' ? 'text-center' : ''}">${c.header}</th>`).join('')}
-                      <th class="text-center">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tbody-${entidad.key}">
-                    <tr>
-                      <td colspan="${entidad.columnas.length + 1}" class="text-center text-muted py-4">
-                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                        Cargando...
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="mb-3">
+      <label for="campo-${field.name}" class="form-label">${field.label}</label>
+      ${inputHtml}
+      <div class="invalid-feedback">Este campo es obligatorio.</div>
     </div>
   `;
 }
 
-function construirCampo(entidad, campo) {
-  const requerido = typeof campo.required === 'function' ? campo.required(false) : campo.required;
-  const idCompleto = `${campo.id}-${entidad.key}`;
+// Renderizado de la tabla
 
-  let control = '';
+function construirEncabezadoTabla() {
+  const columnas = moduloActivo.fields.map((f) => `<th>${f.label}</th>`).join("");
+  tableHead.innerHTML = `<tr>${columnas}<th class="text-center">Acciones</th></tr>`;
+}
 
-  if (campo.type === 'select') {
-    control = `
-      <select class="form-select" id="${idCompleto}" ${requerido ? 'required' : ''}>
-        <option value="" selected disabled>Seleccione...</option>
-        ${campo.options.map((op) => `<option value="${esc(op)}">${esc(op)}</option>`).join('')}
-      </select>`;
-  } else if (campo.type === 'reference') {
-    control = `
-      <select class="form-select" id="${idCompleto}" ${requerido ? 'required' : ''} data-ref-entidad="${campo.refEntidad}">
-        <option value="" selected disabled>Cargando opciones...</option>
-      </select>`;
-  } else if (campo.type === 'textarea') {
-    control = `<textarea class="form-control" id="${idCompleto}" rows="3" ${requerido ? 'required' : ''} placeholder="${esc(campo.placeholder || '')}"></textarea>`;
-  } else {
-    const extra = [
-      campo.min !== undefined ? `min="${campo.min}"` : '',
-      campo.max !== undefined ? `max="${campo.max}"` : '',
-      campo.step !== undefined ? `step="${campo.step}"` : '',
-    ].join(' ');
-    control = `<input type="${campo.type}" class="form-control" id="${idCompleto}" ${requerido ? 'required' : ''} ${extra} placeholder="${esc(campo.placeholder || '')}" />`;
+function valorParaTabla(registro, field) {
+  let valor = registro[field.name];
+
+  if (field.type === "ref") {
+    if (valor && typeof valor === "object") {
+      return escaparHtml(String(valor[field.refDisplay] ?? valor._id ?? ""));
+    }
+    return escaparHtml(String(valor ?? ""));
   }
 
-  return `
-    <div class="mb-3">
-      <label for="${idCompleto}" class="form-label">${esc(campo.label)}</label>
-      ${control}
-      ${campo.ayudaEdicion ? `<div class="form-text d-none" id="ayuda-${idCompleto}">${esc(campo.ayudaEdicion)}</div>` : ''}
-      <div class="invalid-feedback">Este campo es obligatorio.</div>
-    </div>`;
-}
-
-function cambiarTab(key) {
-  entidadActiva = key;
-  document.querySelectorAll('.entity-panel').forEach((p) => p.classList.add('d-none'));
-  document.getElementById(`panel-${key}`).classList.remove('d-none');
-  document.querySelectorAll('button[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === key));
-}
-
-
-
-async function cargarOpcionesReferencia(entidad) {
-  const camposReferencia = entidad.campos.filter((c) => c.type === 'reference');
-  if (camposReferencia.length === 0) return;
-
-  for (const campo of camposReferencia) {
-    const refEntidad = ENTIDADES.find((e) => e.key === campo.refEntidad);
-    try {
-      const respuesta = await fetch(refEntidad.endpoint);
-      const datos = await respuesta.json();
-      const lista = datos[refEntidad.listKey] || [];
-      const select = document.getElementById(`${campo.id}-${entidad.key}`);
-      if (!select) continue;
-
-      select.innerHTML =
-        `<option value="" selected disabled>Seleccione...</option>` +
-        lista.map((item) => `<option value="${item[refEntidad.idField]}">${esc(campo.refLabel(item))}</option>`).join('');
-    } catch (error) {
-      console.error(`No se pudieron cargar las opciones de ${campo.refEntidad}`, error);
-    }
+  if (field.isList && Array.isArray(valor)) {
+    return escaparHtml(valor.join(", "));
   }
+
+  if (field.type === "password") {
+    return valor ? "••••••••" : '<span class="text-muted">—</span>';
+  }
+
+  if (field.type === "number" && valor && valor.$numberDecimal !== undefined) {
+    return escaparHtml(Number(valor.$numberDecimal).toLocaleString("es-CR", { minimumFractionDigits: 2 }));
+  }
+
+  if (field.type === "date" && valor) {
+    return new Date(valor).toLocaleDateString("es-CR");
+  }
+
+  return escaparHtml(String(valor ?? ""));
 }
 
+function renderizarTabla(lista) {
+  construirEncabezadoTabla();
 
-function resetearFormulario(entidad) {
-  const form = document.getElementById(`form-${entidad.key}`);
-  form.reset();
-  form.classList.remove('was-validated', 'editing');
-  document.getElementById(`id-${entidad.key}`).value = '';
-  document.getElementById(`form-title-${entidad.key}`).innerHTML = `<i class="bi bi-plus-circle me-1"></i> Agregar ${entidad.nombreSingular}`;
-  document.getElementById(`submit-btn-${entidad.key}`).innerHTML = '<i class="bi bi-save2 me-1"></i> Guardar';
-  document.getElementById(`cancel-btn-${entidad.key}`).classList.add('d-none');
-  estado[entidad.key].idEnEdicion = null;
+  if (!lista || lista.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="${moduloActivo.fields.length + 1}" class="text-center text-muted py-4">
+          <i class="bi bi-inbox fs-4 d-block mb-1"></i>
+          No hay registros todavía en ${escaparHtml(moduloActivo.label)}.
+        </td>
+      </tr>
+    `;
+    return;
+  }
 
-  entidad.campos.forEach((campo) => {
-    if (campo.ayudaEdicion) {
-      document.getElementById(`ayuda-${campo.id}-${entidad.key}`)?.classList.add('d-none');
-    }
-    const input = document.getElementById(`${campo.id}-${entidad.key}`);
-    if (input && typeof campo.required === 'function') {
-      input.required = campo.required(false);
-    }
-  });
+  tableBody.innerHTML = lista
+    .map((registro) => {
+      const id = registro._id;
+      const celdas = moduloActivo.fields.map((f) => `<td>${valorParaTabla(registro, f)}</td>`).join("");
+      return `
+        <tr data-id="${id}">
+          ${celdas}
+          <td class="text-center text-nowrap">
+            <button class="btn btn-sm btn-outline-primary me-1 btn-editar" title="Editar">
+              <i class="bi bi-pencil-fill"></i>
+            </button>
+            <button class="btn btn-sm btn-outline-danger btn-eliminar" title="Eliminar">
+              <i class="bi bi-trash-fill"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
 }
 
-function entrarModoEdicion(entidad, registro) {
-  const form = document.getElementById(`form-${entidad.key}`);
-  const id = registro[entidad.idField];
-  document.getElementById(`id-${entidad.key}`).value = id;
-  estado[entidad.key].idEnEdicion = id;
+// Utilidades de UI
 
-  entidad.campos.forEach((campo) => {
-    const input = document.getElementById(`${campo.id}-${entidad.key}`);
-    if (!input) return;
-
-    if (campo.type === 'reference') {
-      const valorRef = registro[campo.id];
-      input.value = typeof valorRef === 'object' && valorRef !== null ? valorRef._id : valorRef;
-    } else if (campo.type === 'date') {
-      const fecha = registro[campo.id] ? new Date(registro[campo.id]) : null;
-      input.value = fecha ? fecha.toISOString().slice(0, 10) : '';
-    } else if (campo.id === 'costo_ingreso') {
-      input.value = obtenerCosto(registro);
-    } else if (campo.type === 'password') {
-      input.value = '';
-      input.required = false;
-      document.getElementById(`ayuda-${campo.id}-${entidad.key}`)?.classList.remove('d-none');
-    } else {
-      input.value = registro[campo.id] ?? '';
-    }
-  });
-
-  form.classList.add('editing');
-  document.getElementById(`form-title-${entidad.key}`).innerHTML = `<i class="bi bi-pencil-square me-1"></i> Editar ${entidad.nombreSingular}`;
-  document.getElementById(`submit-btn-${entidad.key}`).innerHTML = '<i class="bi bi-arrow-repeat me-1"></i> Actualizar';
-  document.getElementById(`cancel-btn-${entidad.key}`).classList.remove('d-none');
-  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function mostrarAlerta(entidad, mensaje, tipo = 'success') {
-  document.getElementById(`alert-box-${entidad.key}`).innerHTML = `
+function mostrarAlerta(mensaje, tipo = "success") {
+  alertBox.innerHTML = `
     <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
       ${mensaje}
       <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>`;
+    </div>
+  `;
 }
 
+function escaparHtml(texto) {
+  const div = document.createElement("div");
+  div.textContent = texto ?? "";
+  return div.innerHTML;
+}
 
-function renderizarEstadoVacio(entidad, mensaje) {
-  const tbody = document.getElementById(`tbody-${entidad.key}`);
-  tbody.innerHTML = `
+function resetearFormulario() {
+  dynamicForm.reset();
+  dynamicForm.classList.remove("was-validated", "editing");
+  idInput.value = "";
+  formTitle.innerHTML = `<i class="bi bi-plus-circle me-1"></i> Agregar registro`;
+  submitBtn.innerHTML = `<i class="bi bi-save2 me-1"></i> Guardar`;
+  cancelBtn.classList.add("d-none");
+
+  const campoPass = moduloActivo.fields.find((f) => f.requiredOnCreateOnly);
+  if (campoPass) {
+    document.getElementById(`campo-${campoPass.name}`).required = true;
+  }
+}
+
+function entrarModoEdicion(registro) {
+  idInput.value = registro._id;
+
+  moduloActivo.fields.forEach((f) => {
+    const input = document.getElementById(`campo-${f.name}`);
+    if (!input) return;
+
+    let valor = registro[f.name];
+
+    if (f.type === "ref" && valor && typeof valor === "object") {
+      valor = valor._id;
+    }
+    if (f.isList && Array.isArray(valor)) {
+      valor = valor.join(", ");
+    }
+    if (f.type === "number" && valor && valor.$numberDecimal !== undefined) {
+      valor = valor.$numberDecimal;
+    }
+    if (f.type === "date" && valor) {
+      valor = new Date(valor).toISOString().split("T")[0];
+    }
+    if (f.type === "password") {
+      valor = "";
+      input.required = false;
+    }
+
+    input.value = valor ?? "";
+  });
+
+  dynamicForm.classList.add("editing");
+  formTitle.innerHTML = `<i class="bi bi-pencil-square me-1"></i> Editar registro`;
+  submitBtn.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i> Actualizar`;
+  cancelBtn.classList.remove("d-none");
+
+  dynamicForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ----------------------------------------------------------
+// Llamadas a la API
+// ----------------------------------------------------------
+
+async function cargarRegistros() {
+  tableHead.innerHTML = "";
+  tableBody.innerHTML = `
     <tr>
-      <td colspan="${entidad.columnas.length + 1}" class="text-center text-muted">
-        <div class="st-empty-state">
-          <i class="bi bi-inbox d-block mb-2"></i>
-          <p class="mb-2">${mensaje}</p>
-        </div>
-      </td>
-    </tr>`;
-}
-
-function renderizarTabla(entidad, registros) {
-  const tbody = document.getElementById(`tbody-${entidad.key}`);
-
-  if (!registros || registros.length === 0) {
-    renderizarEstadoVacio(entidad, `Aún no hay registros en ${entidad.label.toLowerCase()}.`);
-    return;
-  }
-
-  tbody.innerHTML = registros
-    .map((registro) => {
-      const id = registro[entidad.idField];
-      const esNueva = id === estado[entidad.key].ultimoIdGuardado;
-      const celdas = entidad.columnas
-        .map((c) => `<td class="${c.align === 'end' ? 'text-end' : c.align === 'center' ? 'text-center' : ''}">${c.render(registro)}</td>`)
-        .join('');
-      return `
-      <tr data-id="${id}" class="${esNueva ? 'fila-nueva' : ''}">
-        ${celdas}
-        <td class="text-center">
-          <button class="btn btn-sm btn-outline-primary me-1 btn-editar" title="Editar">
-            <i class="bi bi-pencil-fill"></i>
-          </button>
-          <button class="btn btn-sm btn-outline-danger btn-eliminar" title="Eliminar">
-            <i class="bi bi-trash-fill"></i>
-          </button>
-        </td>
-      </tr>`;
-    })
-    .join('');
-
-  estado[entidad.key].ultimoIdGuardado = null;
-}
-
-function actualizarContador(entidad, valor) {
-  document.getElementById(`contador-${entidad.key}`).textContent = valor;
-}
-
-function filtrarYRenderizar(entidad) {
-  const buscador = document.getElementById(`buscador-${entidad.key}`);
-  const termino = buscador.value.trim().toLowerCase();
-  const cache = estado[entidad.key].cache;
-
-  if (!termino) {
-    renderizarTabla(entidad, cache);
-    actualizarContador(entidad, cache.length);
-    return;
-  }
-
-  const filtrados = cache.filter((r) => entidad.filtro(r, termino));
-  actualizarContador(entidad, `${filtrados.length} / ${cache.length}`);
-
-  if (filtrados.length === 0) {
-    renderizarEstadoVacio(entidad, 'Ningún registro coincide con tu búsqueda.');
-  } else {
-    renderizarTabla(entidad, filtrados);
-  }
-}
-
-
-async function cargarDatos(entidad) {
-  const tbody = document.getElementById(`tbody-${entidad.key}`);
-  tbody.innerHTML = `
-    <tr>
-      <td colspan="${entidad.columnas.length + 1}" class="text-center text-muted py-4">
+      <td class="text-center text-muted py-4">
         <div class="spinner-border spinner-border-sm me-2" role="status"></div>
         Cargando...
       </td>
-    </tr>`;
+    </tr>
+  `;
 
   try {
-    const respuesta = await fetch(entidad.endpoint);
-    if (!respuesta.ok) throw new Error(`No se pudo obtener ${entidad.label.toLowerCase()}`);
-    const datos = await respuesta.json();
-    const lista = datos[entidad.listKey] || [];
-    estado[entidad.key].cache = lista;
-    actualizarContador(entidad, datos.cantidad ?? lista.length);
-    renderizarTabla(entidad, lista);
+    const respuesta = await fetch(`${API_BASE_URL}${moduloActivo.endpoint}`);
+    if (!respuesta.ok) throw new Error("No se pudo obtener la lista");
+    const data = await respuesta.json();
+    registrosActuales = data[moduloActivo.listKey] || [];
+
+    cacheReferencias[moduloActivo.key] = registrosActuales;
+
+    renderizarTabla(registrosActuales);
   } catch (error) {
-    tbody.innerHTML = `
+    construirEncabezadoTabla();
+    tableBody.innerHTML = `
       <tr>
-        <td colspan="${entidad.columnas.length + 1}" class="text-center text-danger py-4">
+        <td colspan="${moduloActivo.fields.length + 1}" class="text-center text-danger py-4">
           <i class="bi bi-wifi-off fs-4 d-block mb-1"></i>
-          No se pudo conectar con la API. Verifique que el servidor esté corriendo.
+          No se pudo conectar con la API. Verifique que el servidor esté corriendo en ${API_BASE_URL}.
         </td>
-      </tr>`;
+      </tr>
+    `;
     console.error(error);
   }
 }
 
-async function guardarRegistro(entidad, datos, id) {
-  const url = id ? `${entidad.endpoint}/${id}` : entidad.endpoint;
-  const metodo = id ? 'PUT' : 'POST';
+function recolectarDatosFormulario() {
+  const datos = {};
+
+  moduloActivo.fields.forEach((f) => {
+    const input = document.getElementById(`campo-${f.name}`);
+    let valor = input.value.trim();
+
+    if (f.type === "password" && idInput.value && valor === "") {
+      return;
+    }
+
+    if (f.isList) {
+      datos[f.name] = valor === "" ? [] : valor.split(",").map((v) => v.trim()).filter(Boolean);
+      return;
+    }
+
+    if (f.type === "number") {
+      datos[f.name] = valor === "" ? undefined : Number(valor);
+      return;
+    }
+
+    if (f.uppercase) {
+      valor = valor.toUpperCase();
+    }
+
+    datos[f.name] = valor;
+  });
+
+  return datos;
+}
+
+async function guardarRegistro(datos, id) {
+  const url = id ? `${API_BASE_URL}${moduloActivo.endpoint}/${id}` : `${API_BASE_URL}${moduloActivo.endpoint}`;
+  const metodo = id ? "PUT" : "POST";
 
   const respuesta = await fetch(url, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(datos),
   });
 
-  const resultado = await respuesta.json();
-
-  if (!respuesta.ok) {
-    throw new Error(resultado.mensaje || `Ocurrió un error al guardar ${entidad.nombreSingular}`);
-  }
-
-  return resultado[entidad.singularKey] ?? resultado;
-}
-
-async function eliminarRegistro(entidad, id) {
-  const respuesta = await fetch(`${entidad.endpoint}/${id}`, { method: 'DELETE' });
   const resultado = await respuesta.json().catch(() => ({}));
 
   if (!respuesta.ok) {
-    throw new Error(resultado.mensaje || `Ocurrió un error al eliminar ${entidad.nombreSingular}`);
+    throw new Error(resultado.mensaje || resultado.error || "Ocurrió un error al guardar el registro");
   }
 
   return resultado;
 }
 
+async function eliminarRegistro(id) {
+  const respuesta = await fetch(`${API_BASE_URL}${moduloActivo.endpoint}/${id}`, { method: "DELETE" });
+  const resultado = await respuesta.json().catch(() => ({}));
 
-function activarEventos(entidad) {
-  const form = document.getElementById(`form-${entidad.key}`);
-  const submitBtn = document.getElementById(`submit-btn-${entidad.key}`);
-  const cancelBtn = document.getElementById(`cancel-btn-${entidad.key}`);
-  const refreshBtn = document.getElementById(`refresh-btn-${entidad.key}`);
-  const buscador = document.getElementById(`buscador-${entidad.key}`);
-  const tbody = document.getElementById(`tbody-${entidad.key}`);
+  if (!respuesta.ok) {
+    throw new Error(resultado.mensaje || "Ocurrió un error al eliminar el registro");
+  }
 
-  form.addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-
-    if (!form.checkValidity()) {
-      evento.stopPropagation();
-      form.classList.add('was-validated');
-      return;
-    }
-
-    const id = document.getElementById(`id-${entidad.key}`).value || null;
-    const datos = {};
-
-    entidad.campos.forEach((campo) => {
-      const input = document.getElementById(`${campo.id}-${entidad.key}`);
-      let valor = input.value;
-
-      if (campo.type === 'password' && id && !valor) {
-        return;
-      }
-      if (campo.type === 'number') {
-        valor = valor === '' ? undefined : Number(valor);
-      }
-      if (valor !== undefined && valor !== '') {
-        datos[campo.id] = valor;
-      }
-    });
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Guardando...`;
-
-    try {
-      const registroGuardado = await guardarRegistro(entidad, datos, id);
-      estado[entidad.key].ultimoIdGuardado = registroGuardado?.[entidad.idField] ?? null;
-      mostrarAlerta(entidad, id ? `${capitaliza(entidad.nombreSingular)} actualizado correctamente.` : `${capitaliza(entidad.nombreSingular)} agregado correctamente.`, 'success');
-      resetearFormulario(entidad);
-      buscador.value = '';
-      await cargarDatos(entidad);
-    } catch (error) {
-      mostrarAlerta(entidad, error.message, 'danger');
-      console.error(error);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = id ? '<i class="bi bi-arrow-repeat me-1"></i> Actualizar' : '<i class="bi bi-save2 me-1"></i> Guardar';
-    }
-  });
-
-  cancelBtn.addEventListener('click', () => resetearFormulario(entidad));
-  refreshBtn.addEventListener('click', () => {
-    buscador.value = '';
-    cargarDatos(entidad);
-  });
-  buscador.addEventListener('input', () => filtrarYRenderizar(entidad));
-
-  tbody.addEventListener('click', async (evento) => {
-    const fila = evento.target.closest('tr[data-id]');
-    if (!fila) return;
-    const id = fila.dataset.id;
-
-    if (evento.target.closest('.btn-editar')) {
-      try {
-        const respuesta = await fetch(`${entidad.endpoint}/${id}`);
-        if (!respuesta.ok) throw new Error(`No se pudo cargar ${entidad.nombreSingular}`);
-        const registro = await respuesta.json();
-        await cargarOpcionesReferencia(entidad);
-        entrarModoEdicion(entidad, registro);
-      } catch (error) {
-        mostrarAlerta(entidad, error.message, 'danger');
-      }
-    }
-
-    if (evento.target.closest('.btn-eliminar')) {
-      estado[entidad.key].idPendienteEliminar = id;
-      estado[entidad.key].nombrePendienteEliminar = fila.querySelector('td')?.textContent ?? 'este registro';
-      document.getElementById('delete-target-name').textContent = estado[entidad.key].nombrePendienteEliminar;
-      document.getElementById('confirm-delete-btn').dataset.entidad = entidad.key;
-      deleteModal.show();
-    }
-  });
+  return resultado;
 }
 
-function capitaliza(texto) {
-  return texto.charAt(0).toUpperCase() + texto.slice(1);
-}
+// ----------------------------------------------------------
+// Eventos
+// ----------------------------------------------------------
 
+dynamicForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  e.stopPropagation();
 
-document.addEventListener('DOMContentLoaded', async () => {
-  construirInterfaz();
-  deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  if (!dynamicForm.checkValidity()) {
+    dynamicForm.classList.add("was-validated");
+    return;
+  }
+  dynamicForm.classList.add("was-validated");
 
-  document.getElementById('confirm-delete-btn').addEventListener('click', async (evento) => {
-    const key = evento.currentTarget.dataset.entidad;
-    const entidad = ENTIDADES.find((e) => e.key === key);
-    const info = estado[key];
-    if (!entidad || !info.idPendienteEliminar) return;
+  const id = idInput.value;
+  const datos = recolectarDatosFormulario();
 
-    try {
-      await eliminarRegistro(entidad, info.idPendienteEliminar);
-      mostrarAlerta(entidad, `${capitaliza(entidad.nombreSingular)} eliminado correctamente.`, 'success');
-      deleteModal.hide();
-      await cargarDatos(entidad);
-    } catch (error) {
-      mostrarAlerta(entidad, error.message, 'danger');
-    } finally {
-      info.idPendienteEliminar = null;
-      info.nombrePendienteEliminar = null;
-    }
-  });
+  submitBtn.disabled = true;
+  try {
+    await guardarRegistro(datos, id);
+    mostrarAlerta(`Registro ${id ? "actualizado" : "creado"} correctamente en ${escaparHtml(moduloActivo.label)}.`, "success");
+    resetearFormulario();
+    await cargarRegistros();
+  } catch (error) {
+    mostrarAlerta(error.message, "danger");
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
 
-  for (const entidad of ENTIDADES) {
-    activarEventos(entidad);
-    await cargarOpcionesReferencia(entidad);
-    await cargarDatos(entidad);
+cancelBtn.addEventListener("click", resetearFormulario);
+refreshBtn.addEventListener("click", cargarRegistros);
+
+tableBody.addEventListener("click", (e) => {
+  const fila = e.target.closest("tr[data-id]");
+  if (!fila) return;
+  const id = fila.dataset.id;
+  const registro = registrosActuales.find((r) => r._id === id);
+  if (!registro) return;
+
+  if (e.target.closest(".btn-editar")) {
+    entrarModoEdicion(registro);
+  }
+
+  if (e.target.closest(".btn-eliminar")) {
+    idPendienteEliminar = id;
+    const primerCampo = moduloActivo.fields[0];
+    deleteTargetLabel.textContent = valorParaTabla(registro, primerCampo).replace(/<[^>]*>/g, "") || id;
+    deleteModal.show();
+  }
+});
+
+document.getElementById("confirm-delete-btn").addEventListener("click", async () => {
+  if (!idPendienteEliminar) return;
+  const btn = document.getElementById("confirm-delete-btn");
+  btn.disabled = true;
+
+  try {
+    await eliminarRegistro(idPendienteEliminar);
+    mostrarAlerta("Registro eliminado correctamente.", "success");
+    await cargarRegistros();
+  } catch (error) {
+    mostrarAlerta(error.message, "danger");
+  } finally {
+    btn.disabled = false;
+    idPendienteEliminar = null;
+    deleteModal.hide();
   }
 });
