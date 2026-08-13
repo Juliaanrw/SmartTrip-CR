@@ -1,4 +1,3 @@
-
 const PROVINCIAS_CR = ["San José", "Alajuela", "Cartago", "Heredia", "Guanacaste", "Puntarenas", "Limón"];
 
 const MODULES = [
@@ -119,7 +118,7 @@ const MODULES = [
     fields: [
       { name: "lugar_id", label: "Lugar turístico", type: "ref", refModule: "lugares", refDisplay: "nombre", required: true },
       { name: "usuario_id", label: "Usuario", type: "ref", refModule: "usuarios", refDisplay: "correo", required: true },
-      { name: "calificacion", label: "Calificación (1-5)", type: "number", required: true, min: 1, max: 5, step: 1 },
+      { name: "calificacion", label: "Calificación (1-5)", type: "number", required: true, min: 1, max: 5, step: 1, renderAsStars: true },
       { name: "comentario", label: "Comentario", type: "textarea", required: true },
     ],
   },
@@ -198,5 +197,4 @@ const MODULES = [
   },
 ];
 
-// Acceso rápido por key
 const MODULES_BY_KEY = Object.fromEntries(MODULES.map((m) => [m.key, m]));

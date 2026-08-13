@@ -1,16 +1,15 @@
-
-
 const API_BASE_URL = "http://localhost:3000";
 
-// ---------- Estado global ----------
 let moduloActivo = null;
-let registrosActuales = []; 
-let cacheReferencias = {}; 
+let registrosActuales = [];
+let registrosFiltrados = [];
+let cacheReferencias = {};
 let idPendienteEliminar = null;
 let deleteModal;
 
-// ---------- Referencias al DOM ----------
 const navModulos = document.getElementById("nav-modulos");
+const navLoading = document.getElementById("nav-loading");
+const statsBar = document.getElementById("stats-bar");
 const moduloTitulo = document.getElementById("modulo-titulo");
 const moduloIcono = document.getElementById("modulo-icono");
 const formTitle = document.getElementById("form-title");
@@ -20,14 +19,16 @@ const idInput = document.getElementById("registro-id");
 const submitBtn = document.getElementById("submit-btn");
 const cancelBtn = document.getElementById("cancel-btn");
 const refreshBtn = document.getElementById("refresh-btn");
+const buscador = document.getElementById("buscador");
 const tableHead = document.getElementById("table-head");
 const tableBody = document.getElementById("table-body");
-const alertBox = document.getElementById("alert-box");
 const deleteTargetLabel = document.getElementById("delete-target-label");
+const toastContainer = document.getElementById("toast-container");
 
 document.addEventListener("DOMContentLoaded", () => {
   deleteModal = new bootstrap.Modal(document.getElementById("deleteModal"));
   construirNav();
+  cargarEstadisticas();
   seleccionarModulo(MODULES[0].key);
 });
 
@@ -57,11 +58,50 @@ async function seleccionarModulo(key) {
 
   moduloTitulo.textContent = moduloActivo.label;
   moduloIcono.className = `bi ${moduloActivo.icon} me-2`;
+  buscador.value = "";
 
+  navLoading.classList.remove("d-none");
   await precargarReferencias();
   construirFormulario();
   resetearFormulario();
   await cargarRegistros();
+  navLoading.classList.add("d-none");
+  enfocarPrimerCampo();
+}
+
+// Estadísticas (dashboard superior)
+
+async function cargarEstadisticas() {
+  const acentos = ["forest", "ocean", "sunset", "orchid"];
+
+  statsBar.innerHTML = MODULES.map(
+    (m, i) => `
+      <div class="col-6 col-md-3 col-lg-2">
+        <div class="st-stat-card" data-stat-key="${m.key}" data-accent="${acentos[i % acentos.length]}">
+          <div class="st-stat-num"><div class="spinner-border spinner-border-sm text-secondary" role="status"></div></div>
+          <div class="st-stat-label"><i class="bi ${m.icon} me-1"></i>${m.label}</div>
+        </div>
+      </div>
+    `
+  ).join("");
+
+  MODULES.forEach(async (m) => {
+    try {
+      const resp = await fetch(`${API_BASE_URL}${m.endpoint}`);
+      const data = await resp.json();
+      const total = (data[m.listKey] || []).length;
+      const el = statsBar.querySelector(`[data-stat-key="${m.key}"] .st-stat-num`);
+      if (el) el.textContent = total;
+    } catch (error) {
+      const el = statsBar.querySelector(`[data-stat-key="${m.key}"] .st-stat-num`);
+      if (el) el.innerHTML = '<i class="bi bi-x-circle text-danger"></i>';
+    }
+  });
+}
+
+function actualizarEstadistica(key, total) {
+  const el = statsBar.querySelector(`[data-stat-key="${key}"] .st-stat-num`);
+  if (el) el.textContent = total;
 }
 
 // Precarga de listas para los selects tipo "ref"
@@ -71,7 +111,7 @@ async function precargarReferencias() {
 
   await Promise.all(
     refModules.map(async (key) => {
-      if (cacheReferencias[key]) return; // ya está en caché
+      if (cacheReferencias[key]) return;
       const mod = MODULES_BY_KEY[key];
       try {
         const resp = await fetch(`${API_BASE_URL}${mod.endpoint}`);
@@ -125,7 +165,18 @@ function construirFormulario() {
         );
       }
 
-      // text, email, password, number, date
+      if (f.type === "password") {
+        return campoWrapper(
+          f,
+          `<div class="input-group">
+             <input type="password" class="form-control" id="${idAttr}" ${reqAttr} placeholder="${f.placeholder || ""}" />
+             <button class="btn btn-outline-secondary" type="button" id="toggle-${idAttr}" aria-label="Mostrar u ocultar contraseña">
+               <i class="bi bi-eye"></i>
+             </button>
+           </div>`
+        );
+      }
+
       const extra = [
         f.min !== undefined ? `min="${f.min}"` : "",
         f.max !== undefined ? `max="${f.max}"` : "",
@@ -138,6 +189,19 @@ function construirFormulario() {
       );
     })
     .join("");
+
+  moduloActivo.fields
+    .filter((f) => f.type === "password")
+    .forEach((f) => {
+      const idAttr = `campo-${f.name}`;
+      const btn = document.getElementById(`toggle-${idAttr}`);
+      const input = document.getElementById(idAttr);
+      btn.addEventListener("click", () => {
+        const esPassword = input.type === "password";
+        input.type = esPassword ? "text" : "password";
+        btn.querySelector("i").className = esPassword ? "bi bi-eye-slash" : "bi bi-eye";
+      });
+    });
 }
 
 function campoWrapper(field, inputHtml) {
@@ -150,6 +214,11 @@ function campoWrapper(field, inputHtml) {
   `;
 }
 
+function enfocarPrimerCampo() {
+  const primerInput = formFields.querySelector("input, select, textarea");
+  if (primerInput) primerInput.focus();
+}
+
 // Renderizado de la tabla
 
 function construirEncabezadoTabla() {
@@ -157,8 +226,22 @@ function construirEncabezadoTabla() {
   tableHead.innerHTML = `<tr>${columnas}<th class="text-center">Acciones</th></tr>`;
 }
 
+function renderEstrellas(valor) {
+  const n = Number(valor) || 0;
+  let html = '<span class="st-stars" title="' + n + ' de 5">';
+  for (let i = 1; i <= 5; i++) {
+    html += `<i class="bi ${i <= n ? "bi-star-fill" : "bi-star"}"></i>`;
+  }
+  html += "</span>";
+  return html;
+}
+
 function valorParaTabla(registro, field) {
   let valor = registro[field.name];
+
+  if (field.renderAsStars) {
+    return renderEstrellas(valor);
+  }
 
   if (field.type === "ref") {
     if (valor && typeof valor === "object") {
@@ -183,7 +266,13 @@ function valorParaTabla(registro, field) {
     return new Date(valor).toLocaleDateString("es-CR");
   }
 
-  return escaparHtml(String(valor ?? ""));
+  const texto = String(valor ?? "");
+  const escapado = escaparHtml(texto);
+  if (field.type === "textarea" && texto.length > 40) {
+    return `<span title="${escapado}">${escapado}</span>`;
+  }
+
+  return escapado;
 }
 
 function renderizarTabla(lista) {
@@ -194,7 +283,7 @@ function renderizarTabla(lista) {
       <tr>
         <td colspan="${moduloActivo.fields.length + 1}" class="text-center text-muted py-4">
           <i class="bi bi-inbox fs-4 d-block mb-1"></i>
-          No hay registros todavía en ${escaparHtml(moduloActivo.label)}.
+          No hay registros que coincidan en ${escaparHtml(moduloActivo.label)}.
         </td>
       </tr>
     `;
@@ -209,10 +298,10 @@ function renderizarTabla(lista) {
         <tr data-id="${id}">
           ${celdas}
           <td class="text-center text-nowrap">
-            <button class="btn btn-sm btn-outline-primary me-1 btn-editar" title="Editar">
+            <button class="btn btn-sm btn-outline-primary me-1 btn-editar" title="Editar" aria-label="Editar registro">
               <i class="bi bi-pencil-fill"></i>
             </button>
-            <button class="btn btn-sm btn-outline-danger btn-eliminar" title="Eliminar">
+            <button class="btn btn-sm btn-outline-danger btn-eliminar" title="Eliminar" aria-label="Eliminar registro">
               <i class="bi bi-trash-fill"></i>
             </button>
           </td>
@@ -222,15 +311,45 @@ function renderizarTabla(lista) {
     .join("");
 }
 
+// Buscador 
+
+buscador.addEventListener("keyup", () => {
+  const texto = buscador.value.trim().toLowerCase();
+
+  if (!texto) {
+    registrosFiltrados = registrosActuales;
+    renderizarTabla(registrosFiltrados);
+    return;
+  }
+
+  registrosFiltrados = registrosActuales.filter((registro) =>
+    moduloActivo.fields.some((f) => {
+      const plano = valorParaTabla(registro, f).replace(/<[^>]*>/g, "").toLowerCase();
+      return plano.includes(texto);
+    })
+  );
+
+  renderizarTabla(registrosFiltrados);
+});
+
 // Utilidades de UI
 
-function mostrarAlerta(mensaje, tipo = "success") {
-  alertBox.innerHTML = `
-    <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
-      ${mensaje}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+function mostrarToast(mensaje, tipo = "success") {
+  const id = "toast-" + Date.now();
+  const icono = tipo === "success" ? "bi-check-circle-fill" : "bi-x-circle-fill";
+  const html = `
+    <div id="${id}" class="toast align-items-center text-bg-${tipo} border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body"><i class="bi ${icono} me-2"></i>${mensaje}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
     </div>
   `;
+  toastContainer.insertAdjacentHTML("beforeend", html);
+  const toastEl = document.getElementById(id);
+  const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+  toast.show();
+  toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
 }
 
 function escaparHtml(texto) {
@@ -288,11 +407,10 @@ function entrarModoEdicion(registro) {
   cancelBtn.classList.remove("d-none");
 
   dynamicForm.scrollIntoView({ behavior: "smooth", block: "start" });
+  enfocarPrimerCampo();
 }
 
-// ----------------------------------------------------------
 // Llamadas a la API
-// ----------------------------------------------------------
 
 async function cargarRegistros() {
   tableHead.innerHTML = "";
@@ -310,10 +428,12 @@ async function cargarRegistros() {
     if (!respuesta.ok) throw new Error("No se pudo obtener la lista");
     const data = await respuesta.json();
     registrosActuales = data[moduloActivo.listKey] || [];
+    registrosFiltrados = registrosActuales;
 
     cacheReferencias[moduloActivo.key] = registrosActuales;
+    actualizarEstadistica(moduloActivo.key, registrosActuales.length);
 
-    renderizarTabla(registrosActuales);
+    renderizarTabla(registrosFiltrados);
   } catch (error) {
     construirEncabezadoTabla();
     tableBody.innerHTML = `
@@ -389,9 +509,7 @@ async function eliminarRegistro(id) {
   return resultado;
 }
 
-// ----------------------------------------------------------
 // Eventos
-// ----------------------------------------------------------
 
 dynamicForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -409,11 +527,11 @@ dynamicForm.addEventListener("submit", async (e) => {
   submitBtn.disabled = true;
   try {
     await guardarRegistro(datos, id);
-    mostrarAlerta(`Registro ${id ? "actualizado" : "creado"} correctamente en ${escaparHtml(moduloActivo.label)}.`, "success");
+    mostrarToast(`Registro ${id ? "actualizado" : "creado"} correctamente en ${escaparHtml(moduloActivo.label)}.`, "success");
     resetearFormulario();
     await cargarRegistros();
   } catch (error) {
-    mostrarAlerta(error.message, "danger");
+    mostrarToast(error.message, "danger");
   } finally {
     submitBtn.disabled = false;
   }
@@ -448,10 +566,10 @@ document.getElementById("confirm-delete-btn").addEventListener("click", async ()
 
   try {
     await eliminarRegistro(idPendienteEliminar);
-    mostrarAlerta("Registro eliminado correctamente.", "success");
+    mostrarToast("Registro eliminado correctamente.", "success");
     await cargarRegistros();
   } catch (error) {
-    mostrarAlerta(error.message, "danger");
+    mostrarToast(error.message, "danger");
   } finally {
     btn.disabled = false;
     idPendienteEliminar = null;
