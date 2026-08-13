@@ -1,141 +1,286 @@
+
 :root {
-  --st-green: #0b6e4f;
-  --st-green-dark: #084c37;
-  --st-sand: #f7f3e9;
-  --st-sky: #2596be;
-  --st-warn: #e0a72b;
+  --st-forest: #0c5c3f;
+  --st-forest-dark: #073826;
+  --st-canopy: #2f9169;
+  --st-ocean: #1c7293;
+  --st-sunset: #ef7d3b;
+  --st-orchid: #9c4f78;
+  --st-sand: #f6f1e7;
+  --st-card: #fffdf9;
+  --st-ink: #1d2b22;
+  --st-ink-soft: #5b6a5f;
+  --st-line: #e6ded0;
+  --st-danger: #c1462f;
+}
+
+* {
+  scrollbar-color: var(--st-canopy) transparent;
 }
 
 body {
   background-color: var(--st-sand);
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--st-ink);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
 }
+
+h1, h2, h3, .card-title, .navbar-brand, .st-stat-num {
+  font-family: "Fraunces", Georgia, serif;
+}
+
+/* ---------- Navbar ---------- */
 
 .st-navbar {
-  background: linear-gradient(135deg, var(--st-green-dark), var(--st-green));
+  background: linear-gradient(120deg, var(--st-forest-dark) 0%, var(--st-forest) 55%, var(--st-canopy) 130%);
+  border-bottom: 3px solid var(--st-sunset);
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
 }
+
+.st-navbar .navbar-brand {
+  font-weight: 600;
+  font-size: 1.35rem;
+  letter-spacing: 0.01em;
+}
+
+.st-navbar .navbar-text {
+  color: rgba(255, 255, 255, 0.75) !important;
+  font-size: 0.8rem;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- Tarjetas base ---------- */
 
 .st-card {
-  border: none;
-  border-radius: 0.75rem;
+  background-color: var(--st-card);
+  border: 1px solid var(--st-line);
+  border-radius: 0.9rem;
+  box-shadow: 0 1px 2px rgba(29, 43, 34, 0.04);
+  transition: box-shadow 0.15s ease;
 }
 
+.st-card .card-header {
+  background-color: transparent;
+  border-bottom: 1px solid var(--st-line);
+  border-radius: 0.9rem 0.9rem 0 0 !important;
+}
+
+.card-title {
+  color: var(--st-forest-dark);
+  font-weight: 600;
+}
+
+/* ---------- Botones ---------- */
+
 .st-btn-primary {
-  background-color: var(--st-green);
-  border-color: var(--st-green);
+  background-color: var(--st-forest);
+  border-color: var(--st-forest);
   color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background-color 0.15s ease, transform 0.1s ease;
 }
 
 .st-btn-primary:hover {
-  background-color: var(--st-green-dark);
-  border-color: var(--st-green-dark);
+  background-color: var(--st-forest-dark);
+  border-color: var(--st-forest-dark);
   color: #fff;
+  transform: translateY(-1px);
 }
 
+.btn-outline-secondary {
+  border-color: var(--st-line);
+  color: var(--st-ink-soft);
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--st-sand);
+  border-color: var(--st-canopy);
+  color: var(--st-forest-dark);
+}
+
+.btn-outline-primary {
+  color: var(--st-forest);
+  border-color: var(--st-forest);
+}
+.btn-outline-primary:hover {
+  background-color: var(--st-forest);
+  border-color: var(--st-forest);
+}
+
+.btn-outline-danger {
+  color: var(--st-danger);
+  border-color: var(--st-danger);
+}
+.btn-outline-danger:hover {
+  background-color: var(--st-danger);
+  border-color: var(--st-danger);
+}
+
+/* ---------- Tabla ---------- */
+
 .table thead {
-  background-color: var(--st-green);
+  background-color: var(--st-forest);
 }
 
 .table thead th {
   color: #fff;
   font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   border-bottom: none;
-  white-space: nowrap;
 }
 
-.badge-categoria {
-  font-weight: 500;
+.table-hover tbody tr:hover {
+  background-color: var(--st-sand);
 }
 
-/* Colores por categoría de lugar */
-.badge-cat-playa      { background-color: #2596be; }
-.badge-cat-montana    { background-color: #2e7d4f; }
-.badge-cat-volcan     { background-color: #c1502e; }
-.badge-cat-parque     { background-color: #4a7c3f; }
-.badge-cat-catarata   { background-color: #1f6f8b; }
-.badge-cat-cultural   { background-color: #7b4fa3; }
-.badge-cat-aventura   { background-color: #e0a72b; color: #3a2c00; }
-.badge-cat-otro       { background-color: #6c757d; }
-
-/* Badges de rol / estado (usuarios) */
-.badge-rol-turista        { background-color: var(--st-sky); }
-.badge-rol-administrador  { background-color: #7b4fa3; }
-.badge-rol-proveedor      { background-color: #c1502e; }
-.badge-estado-activo      { background-color: var(--st-green); }
-.badge-estado-inactivo    { background-color: #6c757d; }
-
-.st-badge-count {
-  background-color: var(--st-green);
-  color: #fff;
-  font-size: 0.75rem;
-  vertical-align: middle;
+.table td {
+  border-color: var(--st-line);
+  font-size: 0.92rem;
 }
 
-.st-estrellas {
-  color: var(--st-warn);
-  letter-spacing: 1px;
+/* ---------- Formulario ---------- */
+
+.form-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--st-forest-dark);
 }
 
-/* Pestañas de navegación entre colecciones */
-.st-nav-pills .nav-link {
-  color: var(--st-green-dark);
-  font-weight: 500;
-  border-radius: 2rem;
-  padding: 0.5rem 1.1rem;
-}
-
-.st-nav-pills .nav-link.active {
-  background-color: var(--st-green);
-  color: #fff;
-}
-
-.st-form.editing {
-  outline: 2px dashed var(--st-warn);
-  outline-offset: 8px;
+.form-control,
+.form-select {
+  border-color: var(--st-line);
   border-radius: 0.5rem;
 }
 
-/* Animación de entrada para filas nuevas/actualizadas */
-@keyframes filaAparece {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-    background-color: rgba(11, 110, 79, 0.12);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    background-color: transparent;
-  }
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--st-canopy);
+  box-shadow: 0 0 0 0.2rem rgba(47, 145, 105, 0.18);
 }
 
-.fila-nueva {
-  animation: filaAparece 0.6s ease-out;
+#dynamic-form.editing {
+  outline: 2px dashed var(--st-sunset);
+  outline-offset: 10px;
+  border-radius: 0.5rem;
 }
 
-/* Estado vacío */
-.st-empty-state {
-  padding: 2.5rem 1rem;
+/* ---------- Estadísticas ---------- */
+
+.st-stat-card {
+  position: relative;
+  background: var(--st-card);
+  border: 1px solid var(--st-line);
+  border-radius: 0.7rem;
+  padding: 0.7rem 0.9rem 0.6rem;
+  text-align: center;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.st-empty-state i {
-  font-size: 2.5rem;
-  color: var(--st-sky);
-  opacity: 0.6;
+.st-stat-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent, var(--st-forest));
 }
 
-.st-empty-state .btn-link {
-  color: var(--st-green);
-  text-decoration: none;
+.st-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(29, 43, 34, 0.08);
+}
+
+.st-stat-card[data-accent="forest"] { --accent: var(--st-forest); }
+.st-stat-card[data-accent="ocean"]  { --accent: var(--st-ocean); }
+.st-stat-card[data-accent="sunset"] { --accent: var(--st-sunset); }
+.st-stat-card[data-accent="orchid"] { --accent: var(--st-orchid); }
+
+.st-stat-num {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--st-ink);
+  line-height: 1.15;
+}
+
+.st-stat-label {
+  font-size: 0.7rem;
+  color: var(--st-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.st-stat-label i {
+  color: var(--accent, var(--st-forest));
+}
+
+/* ---------- Estrellas ---------- */
+
+.st-stars i {
+  color: var(--st-sunset);
+  font-size: 0.85rem;
+}
+.st-stars i.bi-star {
+  color: #e2dccf;
+}
+
+/* ---------- Sidebar de módulos ---------- */
+
+.st-nav-item {
+  border: none;
+  border-radius: 0.5rem;
+  margin: 0.15rem 0.5rem;
+  padding: 0.55rem 0.75rem;
+  width: calc(100% - 1rem);
+  font-size: 0.9rem;
+  color: var(--st-ink-soft);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.st-nav-item i {
+  color: var(--st-ink-soft);
+  transition: color 0.12s ease;
+}
+
+.st-nav-item:hover {
+  background-color: var(--st-sand);
+  color: var(--st-forest-dark);
+}
+
+.st-nav-item.active {
+  background-color: var(--st-forest);
+  color: #fff;
   font-weight: 600;
 }
 
-.st-empty-state .btn-link:hover {
-  text-decoration: underline;
+.st-nav-item.active i {
+  color: #fff;
 }
 
-.text-truncate-cell {
+/* ---------- Tabla: ancho de celdas ---------- */
+
+#table-body td {
   max-width: 220px;
-  display: inline-block;
-  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#table-head th {
+  white-space: nowrap;
+}
+
+/* ---------- Toasts ---------- */
+
+.toast.text-bg-success {
+  background-color: var(--st-forest) !important;
+}
+.toast.text-bg-danger {
+  background-color: var(--st-danger) !important;
 }
